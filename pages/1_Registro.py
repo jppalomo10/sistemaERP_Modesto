@@ -4,6 +4,9 @@ from datetime import datetime
 from db import run_query
 from lib import productos, bodegas
 
+if st.sidebar.button("Cerrar Sesión"):
+    st.session_state.authenticated = False
+    st.switch_page("Inicio.py")
 
 st.set_page_config(
     page_title="Movimientos de Inventario",
@@ -13,6 +16,7 @@ st.set_page_config(
 
 defaults = {
     "carrito": [],
+    "tipo_movimiento": "",
     "fecha_venta": datetime.now(),
     "tipo_venta": "",
     "punto_venta": "",
@@ -28,7 +32,11 @@ defaults = {
     "envio_transferencia": "",
     "bodega_entrada": "",
     "bodega_salida": "",
-    "observaciones_transferencia": ""
+    "observaciones_transferencia": "",
+    "sku": "",
+    "cantidad": 1,
+    "precio": 0,
+    "subtotal": 0,
 }
 
 for key, value in defaults.items():
@@ -73,7 +81,7 @@ with registro:
         
         c1.date_input("Fecha de la compra", value=datetime.now(), key = "fecha_compra")
         c2.text_input("No. Envío", key="envio_compra")
-        c3.selectbox("Punto de venta", ["", *bodegas], key="punto_compra")
+        c3.selectbox("Punto de compra", ["", *bodegas], key="punto_compra")
 
         opciones_proveedores = {None: ""} | {p["id_proveedor"]: p["nombre"] for p in proveedores}
         c4.selectbox("Proveedor", opciones_proveedores, format_func=lambda x: opciones_proveedores[x], key="proveedor")
@@ -102,33 +110,31 @@ with registro:
         with st.expander("Agregar Producto"):
             c1, c2, c3 = st.columns(3)
             
-            prod_sku = c1.selectbox("Producto", productos.keys(), format_func=lambda x: productos[x])
-            prod_nom = productos[prod_sku]
-            prod_cant = c2.number_input("Cantidad", min_value=1, value=1, step=1)
-            prod_precio = c3.number_input("Precio", min_value=0, value=300, step=5)
-            prod_subtotal = prod_cant * prod_precio
+            c1.selectbox("Producto", productos.keys(), format_func=lambda x: productos[x], key="sku")
+            prod_nom = productos[st.session_state.sku]
+            c2.number_input("Cantidad", min_value=1, value=1, step=1, key="cantidad")
+            c3.number_input("Precio", min_value=0, value=0, step=5, key="precio")
+            prod_subtotal = st.session_state.cantidad * st.session_state.precio
 
             st.write("Subtotal:", f"GTQ {prod_subtotal}")
 
             if st.button("Agregar Producto"):
-                st.session_state.carrito.append({"sku": prod_sku, "nombre": prod_nom, "cantidad": prod_cant, "precio": prod_precio, "subtotal": prod_subtotal})
+                st.session_state.carrito.append({"sku": st.session_state.sku, "nombre": prod_nom, "cantidad": st.session_state.cantidad, "precio": st.session_state.precio, "subtotal": prod_subtotal})
                 st.rerun()
 
         if st.session_state.carrito:
             df = pd.DataFrame(st.session_state.carrito)
 
-            df = df.rename(columns={
+            total = df["subtotal"].sum()
+
+            st.subheader("Carrito")
+            st.dataframe(df, width="stretch", column_config={
                 "sku": "SKU",
                 "nombre": "Producto",
                 "cantidad": "Cantidad",
                 "precio": "Precio",
                 "subtotal": "Subtotal"
             })
-
-            total = df["Subtotal"].sum()
-
-            st.subheader("Carrito")
-            st.dataframe(df, width="stretch")
 
             st.markdown(f"### 💰 Total: **Q {total:,.2f}**")
         else:
@@ -138,35 +144,46 @@ with registro:
         with st.expander("Agregar Producto"):
             c1, c2 = st.columns(2)
             
-            prod_sku = c1.selectbox("Producto", productos.keys(), format_func=lambda x: productos[x])
-            prod_nom = productos[prod_sku]
-            prod_cant = c2.number_input("Cantidad", min_value=1, value=1, step=1)
+            c1.selectbox("Producto", productos.keys(), format_func=lambda x: productos[x], key="sku")
+            prod_nom = productos[st.session_state.sku]
+            c2.number_input("Cantidad", min_value=1, value=1, step=1, key="cantidad")
 
             if st.button("Agregar Producto"):
-                st.session_state.carrito.append({"sku": prod_sku, "nombre": prod_nom, "cantidad": prod_cant})
+                st.session_state.carrito.append({"sku": st.session_state.sku, "nombre": prod_nom, "cantidad": st.session_state.cantidad})
                 st.rerun()
 
         if st.session_state.carrito:
             df = pd.DataFrame(st.session_state.carrito)
 
-            df = df.rename(columns={
+            total = df["cantidad"].sum()
+
+            st.subheader("Carrito")
+            st.dataframe(df, width="stretch", column_config={
                 "sku": "SKU",
                 "nombre": "Producto",
                 "cantidad": "Cantidad"
             })
 
-            total = df["Cantidad"].sum()
-
-            st.subheader("Carrito")
-            st.dataframe(df, width="stretch")
-
-            st.markdown(f"### 💰 Total: **Q {total:,.2f}**")
+            st.markdown(f"### 💰 Total: **{total:,} Cajas**")
         else:
             st.info("No hay productos en el carrito")
 
     c1, c2, c3 = st.columns(3)
 
     if c1.button("💾 Guardar"):
+
+        tipo_movimiento = st.session_state.tipo_movimiento
+        
+
+        if st.session_state.tipo_movimiento == "Venta":
+            query = "INSERT INTO encabezados (tipo_movimiento, fecha, total, punto_venta, persona, no_envio, estado, observaciones) VALUES (%s, %s, %s, %s, %s, %s, %s, %s) RETURNING id_transaccion"
+
+        elif st.session_state.tipo_movimiento == "Compra":
+            query = "INSERT INTO encabezados (tipo_movimiento, fecha, total, punto_compra, persona, no_envio, observaciones) VALUES (%s, %s, %s, %s, %s, %s, %s) RETURNING id_transaccion"
+        elif st.session_state.tipo_movimiento == "Transferencia":
+            query = "INSERT INTO encabezados (tipo_movimiento, fecha, total, punto_venta, punto_compra, no_envio, observaciones) VALUES (%s, %s, %s, %s, %s, %s %s) RETURNING id_transaccion"
+        
+
         if transaccion == 1 or transaccion == 2: # Venta o Compra
             
             if transaccion == 1:
@@ -200,4 +217,4 @@ with registro:
         st.session_state.carrito.pop()
         st.rerun()
 
-    st.write("Recargar página para reiniciar el formulario")
+    st.info("Recargar página para reiniciar el formulario")

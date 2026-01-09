@@ -4,7 +4,6 @@ from datetime import datetime
 from db import run_query
 from lib import productos, bodegas
 
-
 st.set_page_config(
     page_title="Movimientos de Inventario",
     layout="centered",
