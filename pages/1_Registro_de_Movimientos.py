@@ -15,8 +15,10 @@ if "carrito" not in st.session_state:
     st.session_state.carrito = []
 
 # Obtener las bases de datos
-clientes = run_query("SELECT * FROM clientes")
-proveedores = run_query("SELECT * FROM proveedores")
+clientes = []
+proveedores = []
+encabezados = []
+detalle = []
 
 st.title("Formulario de Registro de Movimientos")
 

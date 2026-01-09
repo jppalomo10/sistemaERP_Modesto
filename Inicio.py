@@ -21,8 +21,8 @@ if st.sidebar.button("Cerrar Sesión"):
     st.rerun()
 
 st.set_page_config(
-    page_title="COIMPEX S.A.",
-    page_icon="🍇",
+    page_title="Sistema ERP",
+    page_icon=":data:",
     layout="wide"
 )
 
@@ -40,10 +40,10 @@ with col2:
     row = run_query("select now() as ahora;", fetch="one")
     st.write("Conexión exitosa ✅", row["ahora"])
 
-clientes = run_query("SELECT * FROM clientes")
-proveedores = run_query("SELECT * FROM proveedores")
-encabezados = run_query("SELECT * FROM encabezados")
-detalle = run_query("SELECT * FROM detalles")
+clientes = []
+proveedores = []
+encabezados = []
+detalle = []
 
 query_inventario = """
 SELECT
@@ -64,7 +64,7 @@ GROUP BY d.sku
 ORDER BY d.sku;
 """
 
-inventario = run_query(query_inventario, fetch="all")
+inventario = []
 
 st.subheader("Inventario Actual")
 

@@ -12,14 +12,9 @@ def check_login():
     st.set_page_config(page_title="Login", page_icon=":lock:", layout="centered")
 
     col1, col2, col3 = st.columns(3)
-    
-    col3.image(
-        "https://www.guatemalagbc.org/wp-content/uploads/2024/07/spectrum-1-800x600-1.png",
-        width=180
-    )
 
     col1.markdown(
-        "<h2 style='text-align: center;'>Gestor de Horarios</h2>",
+        "<h2 style='text-align: center;'>Sistema ERP</h2>",
         unsafe_allow_html=True
     )
 
